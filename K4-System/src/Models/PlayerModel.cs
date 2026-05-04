@@ -33,7 +33,7 @@ public class K4Player
 	{
 		get
 		{
-			return Controller?.IsValid == true && Controller.PlayerPawn?.IsValid == true && Controller.Connected == PlayerConnectedState.PlayerConnected;
+			return Controller?.IsValid == true && Controller.PlayerPawn?.IsValid == true && Controller.Connected == PlayerConnectedState.Connected;
 		}
 	}
 

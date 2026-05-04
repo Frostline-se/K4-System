@@ -238,24 +238,21 @@ namespace K4System
 				if (k4victim is null || !k4victim.IsValid)
 					return HookResult.Continue;
 
-				RankData k4victimRankData = k4victim.rankData;
 				K4Player? k4attacker = plugin.GetK4Player(@event.Attacker);
 
 				if (k4victim.IsPlayer)
 				{
 					k4victim.KillStreak = (0, DateTime.Now);
 
-					if (k4attacker is null || !k4attacker.IsValid || k4attacker.rankData is null)
+					if (k4attacker is null || !k4attacker.IsValid)
 					{
 						ModifyPlayerPoints(k4victim, Config.PointSettings.Suicide, "k4.phrases.suicide");
 					}
 					else
 					{
-
-						RankData k4attackerRankData = k4attacker.rankData;
 						if (Config.RankSettings.PointsForBots || k4attacker.IsPlayer)
 						{
-							string? extraInfo = Config.RankSettings.PlayerNameKillMessages ? plugin.Localizer["k4.phrases.dying.extra", k4attacker.PlayerName, k4attackerRankData.Points] : null!;
+							string? extraInfo = Config.RankSettings.PlayerNameKillMessages ? plugin.Localizer["k4.phrases.dying.extra", k4attacker.PlayerName] : null!;
 							ModifyPlayerPoints(k4victim, CalculateDynamicPoints(k4attacker, k4victim, Config.PointSettings.Death), "k4.phrases.dying", extraInfo);
 						}
 					}
@@ -269,15 +266,7 @@ namespace K4System
 					}
 					else
 					{
-						string? extraInfo;
-						if (k4attacker.IsPlayer && k4victimRankData != null)
-						{
-							extraInfo = Config.RankSettings.PlayerNameKillMessages ? plugin.Localizer["k4.phrases.kill.extra", k4victim.PlayerName, k4victimRankData.Points] : null!;
-						}
-						else
-						{
-							extraInfo = Config.RankSettings.PlayerNameKillMessages ? plugin.Localizer["k4.phrases.kill.extra", k4victim.PlayerName, 0] : null!;
-						}
+						string? extraInfo = Config.RankSettings.PlayerNameKillMessages ? plugin.Localizer["k4.phrases.kill.extra", k4victim.PlayerName] : null!;
 						ModifyPlayerPoints(k4attacker, CalculateDynamicPoints(k4attacker, k4victim, Config.PointSettings.Kill), "k4.phrases.kill", extraInfo);
 
 						if (@event.Headshot)
@@ -386,24 +375,11 @@ namespace K4System
 				K4Player? k4assister = plugin.GetK4Player(@event.Assister);
 				if (k4assister?.IsValid == true && k4assister.IsPlayer && (Config.RankSettings.PointsForBots || k4victim.IsPlayer))
 				{
-					bool isFFAMode = Config.GeneralSettings.FFAMode;
-					bool victimIsEnemy = isFFAMode || (k4assister.Controller.Team != k4victim.Controller.Team);
+					ModifyPlayerPoints(k4assister, Config.PointSettings.Assist, "k4.phrases.assist");
 
-					if (victimIsEnemy && !@event.Assistedflash)
-					{
-						ModifyPlayerPoints(k4assister, Config.PointSettings.Assist, "k4.phrases.assist");
-					}
-					else if (!victimIsEnemy && !@event.Assistedflash)
-					{
-						ModifyPlayerPoints(k4assister, Config.PointSettings.TeamAssist, "k4.phrases.teamassist");
-					}
-					else if (victimIsEnemy && @event.Assistedflash)
+					if (@event.Assistedflash)
 					{
 						ModifyPlayerPoints(k4assister, Config.PointSettings.AssistFlash, "k4.phrases.assistflash");
-					}
-					else if (!victimIsEnemy && @event.Assistedflash)
-					{
-						ModifyPlayerPoints(k4assister, Config.PointSettings.TeamAssistFlash, "k4.phrases.teamassistflash");
 					}
 				}
 

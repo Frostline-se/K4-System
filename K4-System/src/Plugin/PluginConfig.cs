@@ -20,10 +20,10 @@ namespace K4System
 	public sealed class GeneralSettings
 	{
 		[JsonPropertyName("load-messages")]
-		public bool LoadMessages { get; set; } = true;
+		public bool LoadMessages { get; set; } = false;
 
 		[JsonPropertyName("spawn-message")]
-		public bool SpawnMessage { get; set; } = true;
+		public bool SpawnMessage { get; set; } = false;
 
 		[JsonPropertyName("module_ranks")]
 		public bool ModuleRanks { get; set; } = true;
@@ -73,10 +73,10 @@ namespace K4System
 		public bool AdminListEnable { get; set; } = true;
 
 		[JsonPropertyName("connect-message-enable")]
-		public bool ConnectMessageEnable { get; set; } = true;
+		public bool ConnectMessageEnable { get; set; } = false;
 
 		[JsonPropertyName("disconnect-message-enable")]
-		public bool DisconnectMessageEnable { get; set; } = true;
+		public bool DisconnectMessageEnable { get; set; } = false;
 	}
 
 	public sealed class CommandSettings
@@ -267,14 +267,8 @@ namespace K4System
 		[JsonPropertyName("assist")]
 		public int Assist { get; set; } = 5;
 
-		[JsonPropertyName("team-assist")]
-		public int TeamAssist { get; set; } = -5;
-
 		[JsonPropertyName("assist-flash")]
 		public int AssistFlash { get; set; } = 7;
-
-		[JsonPropertyName("team-assist-flash")]
-		public int TeamAssistFlash { get; set; } = -7;
 
 		[JsonPropertyName("round-win")]
 		public int RoundWin { get; set; } = 5;

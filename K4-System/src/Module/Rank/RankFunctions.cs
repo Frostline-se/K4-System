@@ -15,7 +15,7 @@ namespace K4System
             if (plugin.GameRules == null)
                 return false;
 
-            int notBots = Utilities.GetPlayers().Count(p => p?.IsValid == true && p.PlayerPawn?.IsValid == true && !p.IsBot && !p.IsHLTV && p.SteamID.ToString().Length == 17 && p.Connected == PlayerConnectedState.PlayerConnected);
+            int notBots = Utilities.GetPlayers().Count(p => p?.IsValid == true && p.PlayerPawn?.IsValid == true && !p.IsBot && !p.IsHLTV && p.SteamID.ToString().Length == 17 && p.Connected == PlayerConnectedState.Connected);
 
             return (!plugin.GameRules.WarmupPeriod || Config.RankSettings.WarmupPoints) && (Config.RankSettings.MinPlayers <= notBots);
         }
