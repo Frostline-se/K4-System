@@ -10,7 +10,7 @@ namespace K4System
 	{
 		public bool IsStatsAllowed()
 		{
-			int notBots = Utilities.GetPlayers().Count(player => !player.IsBot);
+			int notBots = Utilities.GetPlayers().Count(player => !player.IsBot && !player.IsHLTV);
 			return plugin.GameRules != null && (!plugin.GameRules.WarmupPeriod || Config.StatisticSettings.WarmupStats) && (Config.StatisticSettings.MinPlayers <= notBots);
 		}
 

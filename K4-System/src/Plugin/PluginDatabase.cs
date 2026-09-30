@@ -68,21 +68,70 @@ public sealed partial class Plugin : BasePlugin
 		}
 	}
 
-	public async Task SaveAllPlayersDataAsync()
+	// Must be called from the main thread: the player list and the entities are only touched here, the database work runs in the background
+	public Task SaveAllPlayersDataAsync()
 	{
-		using (var connection = CreateConnection(Config))
+		List<K4Player> k4players = K4Players.Where(player => player.IsValid && player.IsPlayer).ToList();
+		K4Players.RemoveAll(player => !player.IsValid);
+
+		return Task.Run(() => SavePlayersDataAsync(k4players));
+	}
+
+	private async Task SavePlayersDataAsync(List<K4Player> k4players)
+	{
+		try
 		{
-			await connection.OpenAsync();
-
-			using (var transaction = await connection.BeginTransactionAsync())
+			using (var connection = CreateConnection(Config))
 			{
-				try
-				{
-					foreach (K4Player k4player in K4Players.ToList())
-					{
-						if (!k4player.IsValid || !k4player.IsPlayer)
-							continue;
+				await connection.OpenAsync();
 
+				using (var transaction = await connection.BeginTransactionAsync())
+				{
+					try
+					{
+						foreach (K4Player k4player in k4players)
+						{
+							if (k4player.rankData != null)
+								await ExecuteRankUpdateAsync(transaction, k4player);
+
+							if (k4player.statData != null)
+								await ExecuteStatUpdateAsync(transaction, k4player);
+
+							if (k4player.timeData != null)
+								await ExecuteTimeUpdateAsync(transaction, k4player);
+
+							if (Config.GeneralSettings.LevelRanksCompatibility)
+								await ExecuteLvlRanksUpdateAsync(transaction, k4player);
+						}
+
+						await transaction.CommitAsync();
+					}
+					catch (Exception)
+					{
+						await transaction.RollbackAsync();
+						throw;
+					}
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			Server.NextFrame(() => Logger.LogError("An error occurred while saving all players data: {ErrorMessage}", ex.Message));
+		}
+	}
+
+	public async Task SavePlayerDataAsync(K4Player k4player)
+	{
+		try
+		{
+			using (var connection = CreateConnection(Config))
+			{
+				await connection.OpenAsync();
+
+				using (var transaction = await connection.BeginTransactionAsync())
+				{
+					try
+					{
 						if (k4player.rankData != null)
 							await ExecuteRankUpdateAsync(transaction, k4player);
 
@@ -94,56 +143,21 @@ public sealed partial class Plugin : BasePlugin
 
 						if (Config.GeneralSettings.LevelRanksCompatibility)
 							await ExecuteLvlRanksUpdateAsync(transaction, k4player);
+
+						await transaction.CommitAsync();
 					}
-
-					await transaction.CommitAsync();
-				}
-				catch (Exception ex)
-				{
-					await transaction.RollbackAsync();
-					Server.NextFrame(() => Logger.LogError("An error occurred while saving all players data: {ErrorMessage}", ex.Message));
-					throw;
+					catch (Exception)
+					{
+						await transaction.RollbackAsync();
+						throw;
+					}
 				}
 			}
 		}
-
-		K4Players = new List<K4Player>(K4Players.Where(player => player.IsValid));
-	}
-
-	public async Task SavePlayerDataAsync(K4Player k4player, bool remove)
-	{
-		using (var connection = CreateConnection(Config))
+		catch (Exception ex)
 		{
-			await connection.OpenAsync();
-
-			using (var transaction = await connection.BeginTransactionAsync())
-			{
-				try
-				{
-					if (k4player.rankData != null)
-						await ExecuteRankUpdateAsync(transaction, k4player);
-
-					if (k4player.statData != null)
-						await ExecuteStatUpdateAsync(transaction, k4player);
-
-					if (k4player.timeData != null)
-						await ExecuteTimeUpdateAsync(transaction, k4player);
-
-					if (Config.GeneralSettings.LevelRanksCompatibility)
-						await ExecuteLvlRanksUpdateAsync(transaction, k4player);
-
-					await transaction.CommitAsync();
-				}
-				catch (Exception)
-				{
-					await transaction.RollbackAsync();
-					throw;
-				}
-			}
+			Server.NextFrame(() => Logger.LogError("An error occurred while saving player data: {ErrorMessage}", ex.Message));
 		}
-
-		if (remove)
-			K4Players.Remove(k4player);
 	}
 
 	private async Task ExecuteLvlRanksUpdateAsync(MySqlTransaction transaction, K4Player k4player)
@@ -371,6 +385,10 @@ public sealed partial class Plugin : BasePlugin
 				{
 					Server.NextFrame(() =>
 					{
+						// The player may have left or got loaded already while the query was running
+						if (!k4player.IsValid || K4Players.Any(p => p.Controller == k4player.Controller))
+							return;
+
 						LoadPlayerRowToCache(k4player, row, false);
 					});
 				}
@@ -467,17 +485,17 @@ public sealed partial class Plugin : BasePlugin
 
 				foreach (var row in rows)
 				{
-					string steamId = row.steam_id;
-					K4Player? k4player = K4Players.FirstOrDefault(p => p.SteamID == ulong.Parse(steamId));
+					string steamIdString = row.steam_id;
+					ulong steamId = ulong.Parse(steamIdString);
 
-					if (k4player != null)
+					// The player list is only safe to access from the main thread
+					Server.NextFrame(() =>
 					{
-						Server.NextFrame(() =>
-						{
-							if (k4player.IsValid && k4player.IsPlayer)
-								LoadPlayerRowToCache(k4player, row, true);
-						});
-					}
+						K4Player? k4player = K4Players.FirstOrDefault(p => p.SteamID == steamId);
+
+						if (k4player != null && k4player.IsValid && k4player.IsPlayer)
+							LoadPlayerRowToCache(k4player, row, true);
+					});
 				}
 			}
 		}
@@ -552,7 +570,8 @@ public sealed partial class Plugin : BasePlugin
 						{ "Connect", now },
 						{ "Team", now },
 						{ "Death", now }
-					}
+					},
+				IsAlive = k4player.Controller.PawnIsAlive
 			};
 		}
 

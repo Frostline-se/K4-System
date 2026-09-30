@@ -50,8 +50,10 @@ namespace K4System
 				playerData.TimeFields["all"] += (int)(now - playerData.Times["Connect"]).TotalSeconds;
 				playerData.Times["Connect"] = now;
 
-				playerData.TimeFields["dead"] += (int)(now - playerData.Times["Death"]).TotalSeconds;
-				playerData.Times["Death"] = DateTime.UtcNow;
+				// Survivors are respawned on round start too, their time since the last spawn was alive time
+				playerData.TimeFields[playerData.IsAlive ? "alive" : "dead"] += (int)(now - playerData.Times["Death"]).TotalSeconds;
+				playerData.Times["Death"] = now;
+				playerData.IsAlive = true;
 
 				return HookResult.Continue;
 			});
@@ -74,6 +76,7 @@ namespace K4System
 
 				playerData.TimeFields["alive"] += (int)(now - playerData.Times["Death"]).TotalSeconds;
 				playerData.Times["Death"] = now;
+				playerData.IsAlive = false;
 
 				return HookResult.Continue;
 			});

@@ -78,17 +78,26 @@ namespace K4System
 								await connection.OpenAsync();
 								var result = await connection.QueryAsync(query, new { SteamIds = steamIds });
 
+								List<(ulong steamId, int playerPlace)> placements = new List<(ulong steamId, int playerPlace)>();
+
 								foreach (var row in result)
 								{
 									string steamId = row.steam_id;
-									int playerPlace = (int)row.playerPlace + 1;
-
-									K4Player? k4player = plugin.K4Players.FirstOrDefault(p => p.SteamID == ulong.Parse(steamId));
-									if (k4player != null && k4player.rankData != null)
-									{
-										k4player.rankData.TopPlacement = playerPlace;
-									}
+									placements.Add((ulong.Parse(steamId), (int)row.playerPlace + 1));
 								}
+
+								// The player list is only safe to access from the main thread
+								Server.NextFrame(() =>
+								{
+									foreach (var (steamId, playerPlace) in placements)
+									{
+										K4Player? k4player = plugin.K4Players.FirstOrDefault(p => p.SteamID == steamId);
+										if (k4player != null && k4player.rankData != null)
+										{
+											k4player.rankData.TopPlacement = playerPlace;
+										}
+									}
+								});
 							}
 						}
 						catch (Exception ex)

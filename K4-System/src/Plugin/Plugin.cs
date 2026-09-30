@@ -86,7 +86,8 @@
         {
             //** ? Save Player Caches */
 
-            Task.Run(SaveAllPlayersDataAsync);
+            // Wait for the save, otherwise a hot reload loads the old data back or a shutdown loses it
+            SaveAllPlayersDataAsync().Wait(TimeSpan.FromSeconds(10));
 
             //** ? Release Modules */
 

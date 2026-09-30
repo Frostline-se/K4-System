@@ -138,16 +138,20 @@ namespace K4System
 			{
 				K4Player? k4player = GetK4Player(@event.Userid);
 
-				if (k4player is null || !k4player.IsValid || !k4player.IsPlayer)
+				// Do not check IsValid here, the player is already disconnecting so it would be false and the data would never be saved
+				if (k4player is null || !k4player.IsPlayer)
 					return HookResult.Continue;
 
-				if (Config.GeneralSettings.ModuleTimes)
+				if (Config.GeneralSettings.ModuleTimes && k4player.Controller.IsValid)
 					ModuleTime.BeforeDisconnect(k4player);
 
 				// Do not save cache for each player on mapchange, because it's handled by an optimised query for all players
 				if (@event.Reason != 1)
 				{
-					Task.Run(() => SavePlayerDataAsync(k4player, true));
+					Task.Run(() => SavePlayerDataAsync(k4player));
+
+					// Remove on the main thread, after the other disconnect handlers (eg. disconnect message) had the player
+					Server.NextWorldUpdate(() => K4Players.Remove(k4player));
 				}
 
 				return HookResult.Continue;
@@ -185,7 +189,7 @@ namespace K4System
 				if (Config.GeneralSettings.ModuleRanks)
 					ModuleRank.BeforeRoundEnd(@event.Winner);
 
-				Task.Run(SaveAllPlayersDataAsync);
+				SaveAllPlayersDataAsync();
 				return HookResult.Continue;
 			}, HookMode.Post);
 
@@ -225,47 +229,33 @@ namespace K4System
 				return;
 			}
 
-			if (resetTarget == "all" || resetTarget == "time")
+			// Skip the disabled modules instead of stopping, so "all" still resets the rest
+			if ((resetTarget == "all" || resetTarget == "time") && k4player.timeData is TimeData timeData)
 			{
-				TimeData? playerData = k4player.timeData;
-
-				if (playerData is null)
-					return;
-
-				foreach (var field in playerData.TimeFields.Keys.ToList())
+				foreach (var field in timeData.TimeFields.Keys.ToList())
 				{
-					playerData.TimeFields[field] = 0;
+					timeData.TimeFields[field] = 0;
 				}
 			}
 
-			if (resetTarget == "all" || resetTarget == "rank")
+			if ((resetTarget == "all" || resetTarget == "rank") && k4player.rankData is RankData rankData)
 			{
-				RankData? playerData = k4player.rankData;
-
-				if (playerData is null)
-					return;
-
-				playerData.RoundPoints -= playerData.Points;
-				playerData.Points = Config.RankSettings.StartPoints;
-				playerData.Rank = ModuleRank.GetNoneRank();
+				rankData.RoundPoints -= rankData.Points;
+				rankData.Points = Config.RankSettings.StartPoints;
+				ModuleRank.UpdatePlayerRank(k4player);
 			}
 
-			if (resetTarget == "all" || resetTarget == "stat")
+			if ((resetTarget == "all" || resetTarget == "stat") && k4player.statData is StatData statData)
 			{
-				StatData? playerData = k4player.statData;
-
-				if (playerData is null)
-					return;
-
-				foreach (var field in playerData.StatFields.Keys.ToList())
+				foreach (var field in statData.StatFields.Keys.ToList())
 				{
-					playerData.StatFields[field] = 0;
+					statData.StatFields[field] = 0;
 				}
 			}
 
 			Server.PrintToChatAll($" {Localizer["k4.general.prefix"]} {Localizer["k4.ranks.resetmydata", player!.PlayerName]}");
 
-			Task.Run(() => SavePlayerDataAsync(k4player, false));
+			Task.Run(() => SavePlayerDataAsync(k4player));
 		}
 
 		public void OnCommandResetData(CCSPlayerController? player, CommandInfo info)
@@ -313,48 +303,34 @@ namespace K4System
 					continue;
 				}
 
-				if (resetTarget == "all" || resetTarget == "time")
+				// Skip the disabled modules instead of stopping, so "all" still resets the rest and the other targets
+				if ((resetTarget == "all" || resetTarget == "time") && k4player.timeData is TimeData timeData)
 				{
-					TimeData? playerData = k4player.timeData;
-
-					if (playerData is null)
-						return;
-
-					foreach (var field in playerData.TimeFields.Keys.ToList())
+					foreach (var field in timeData.TimeFields.Keys.ToList())
 					{
-						playerData.TimeFields[field] = 0;
+						timeData.TimeFields[field] = 0;
 					}
 				}
 
-				if (resetTarget == "all" || resetTarget == "rank")
+				if ((resetTarget == "all" || resetTarget == "rank") && k4player.rankData is RankData rankData)
 				{
-					RankData? playerData = k4player.rankData;
-
-					if (playerData is null)
-						return;
-
-					playerData.RoundPoints = 0;
-					playerData.Points = Config.RankSettings.StartPoints;
-					playerData.Rank = ModuleRank.GetNoneRank();
+					rankData.RoundPoints = 0;
+					rankData.Points = Config.RankSettings.StartPoints;
+					ModuleRank.UpdatePlayerRank(k4player);
 				}
 
-				if (resetTarget == "all" || resetTarget == "stat")
+				if ((resetTarget == "all" || resetTarget == "stat") && k4player.statData is StatData statData)
 				{
-					StatData? playerData = k4player.statData;
-
-					if (playerData is null)
-						return;
-
-					foreach (var field in playerData.StatFields.Keys.ToList())
+					foreach (var field in statData.StatFields.Keys.ToList())
 					{
-						playerData.StatFields[field] = 0;
+						statData.StatFields[field] = 0;
 					}
 				}
 
 				if (playerName != "SERVER")
 					Server.PrintToChatAll($" {Localizer["k4.general.prefix"]} {Localizer["k4.ranks.resetdata", target.PlayerName, playerName]}");
 
-				Task.Run(() => SavePlayerDataAsync(k4player, false));
+				Task.Run(() => SavePlayerDataAsync(k4player));
 			}
 		}
 	}

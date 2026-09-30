@@ -99,9 +99,6 @@ namespace K4System
             if (playerData is null)
                 return;
 
-            if (Config.RankSettings.RoundEndPoints && plugin.GameRules != null && !plugin.GameRules.WarmupPeriod)
-                playerData.RoundPoints += amount;
-
             if (amount == 0)
                 return;
 
@@ -109,6 +106,10 @@ namespace K4System
             {
                 amount = (int)Math.Round(amount * Config.RankSettings.VipMultiplier);
             }
+
+            // Count after the multiplier, so the round summary matches the points actually given
+            if (Config.RankSettings.RoundEndPoints && plugin.GameRules != null && !plugin.GameRules.WarmupPeriod)
+                playerData.RoundPoints += amount;
 
             playerData.Points += amount;
 
@@ -144,11 +145,25 @@ namespace K4System
                 }
             });
 
+            UpdatePlayerRank(k4player);
+        }
+
+        // Applies the current points of the player: clamps them, syncs the score and updates the rank, its permissions and the clan tag
+        public void UpdatePlayerRank(K4Player k4player)
+        {
+            RankData? playerData = k4player.rankData;
+
+            if (playerData is null)
+                return;
+
             if (playerData.Points < 0)
                 playerData.Points = 0;
 
             if (Config.RankSettings.ScoreboardScoreSync)
+            {
                 k4player.Controller.Score = playerData.Points;
+                Utilities.SetStateChanged(k4player.Controller, "CCSPlayerController", "m_iScore");
+            }
 
             Rank newRank = GetPlayerRank(playerData.Points);
 
@@ -275,7 +290,8 @@ namespace K4System
 
                 Server.NextWorldUpdate(() =>
                 {
-                    if (tag.Length > 0)
+                    // The player may have left meanwhile, writing to a removed entity can crash the server
+                    if (tag.Length > 0 && k4player.IsValid)
                         k4player.ClanTag = tag;
                 });
             });

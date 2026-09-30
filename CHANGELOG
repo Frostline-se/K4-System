@@ -1,3 +1,24 @@
+-- 2026.09.30 - V4.4.2
+
+- chore: Updated to CounterStrikeSharp v1.0.376 (.NET 10) and Metamod:Source 2.0 (build 1472)
+- fix: Player data was not saved on disconnect
+- fix: Unsaved data was lost on hot reload and server shutdown
+- fix: !setpoints always set the points to 0
+- fix: Admin point commands and data resets did not update the rank, its permissions and the clan tag
+- fix: !removepoints could put a player below 0 points
+- fix: !resetmydata and !resetdata stopped halfway when a module was disabled
+- fix: Killing yourself was punished as a death and a team kill (or rewarded as a kill in FFA mode)
+- fix: Killing yourself counted as a kill in the statistics
+- fix: Flash assist statistic was given to the killer instead of the flasher
+- fix: Bomb, hostage and round statistics ignored the warmup and minimum player settings
+- fix: SourceTV counted as a player for the statistics minimum player check
+- fix: Alive time of round survivors was counted as dead time
+- fix: VIP point multiplier was missing from the round summary
+- fix: Scoreboard score sync was not networked to the clients
+- fix: Rank based team balance could make the teams more uneven and switch the same player back and forth
+- fix: Possible crash when setting the clan tag of a player who already left
+- fix: Player list was modified from background threads, causing "Collection was modified" errors and lost players
+
 -- 2024.07.24 - V4.4.1
 
 - feat: ranks config self-repair added to prevent issues with them

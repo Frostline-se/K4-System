@@ -159,57 +159,35 @@ namespace K4System
 					{
 						List<K4Player> players = plugin.K4Players.Where(p => p.IsValid && p.IsPlayer).ToList();
 
-						int team1Size = players.Count(p => p?.Controller?.Team == CsTeam.Terrorist);
-						int team2Size = players.Count(p => p?.Controller?.Team == CsTeam.CounterTerrorist);
+						var team1Players = players.Where(p => p.Controller.Team == CsTeam.Terrorist).ToList();
+						var team2Players = players.Where(p => p.Controller.Team == CsTeam.CounterTerrorist).ToList();
 
-						if (Math.Abs(team1Size - team2Size) > 1)
+						int team1RankPoints = team1Players.Sum(p => p.rankData?.Points ?? 0);
+						int team2RankPoints = team2Players.Sum(p => p.rankData?.Points ?? 0);
+
+						if (Math.Abs(team1Players.Count - team2Players.Count) > 1 && Math.Abs(team1RankPoints - team2RankPoints) > Config.RankSettings.RankBasedTeamBalanceMaxDifference)
 						{
-							var team1Players = players.Where(p => p?.Controller?.Team == CsTeam.Terrorist).ToList();
-							var team2Players = players.Where(p => p?.Controller?.Team == CsTeam.CounterTerrorist).ToList();
-
-							var team1RankPoints = team1Players.Sum(p => p?.rankData?.Points ?? 0);
-							var team2RankPoints = team2Players.Sum(p => p?.rankData?.Points ?? 0);
-
-							int maxSwitches = 10; // Safety break for the loop
-
-							while (Math.Abs(team1RankPoints - team2RankPoints) > Config.RankSettings.RankBasedTeamBalanceMaxDifference && maxSwitches > 0)
+							// Always move from the bigger team to the smaller one (the other way only makes the sizes worse),
+							// picking the player whose switch brings the point totals the closest
+							while (Math.Abs(team1Players.Count - team2Players.Count) > 1)
 							{
-								maxSwitches--;
+								bool fromTeam1 = team1Players.Count > team2Players.Count;
+								List<K4Player> fromPlayers = fromTeam1 ? team1Players : team2Players;
+								List<K4Player> toPlayers = fromTeam1 ? team2Players : team1Players;
+								int pointDifference = fromTeam1 ? team1RankPoints - team2RankPoints : team2RankPoints - team1RankPoints;
 
-								if (team1RankPoints > team2RankPoints)
-								{
-									var playerToSwitch = team1Players.OrderByDescending(p => p?.rankData?.Points ?? 0).FirstOrDefault();
-									if (playerToSwitch != null)
-									{
-										team1Players.Remove(playerToSwitch);
-										team2Players.Add(playerToSwitch);
-										playerToSwitch.Controller?.ChangeTeam(CsTeam.CounterTerrorist);
-										team1RankPoints -= playerToSwitch?.rankData?.Points ?? 0;
-										team2RankPoints += playerToSwitch?.rankData?.Points ?? 0;
-									}
-								}
-								else
-								{
-									var playerToSwitch = team2Players.OrderByDescending(p => p?.rankData?.Points ?? 0).FirstOrDefault();
-									if (playerToSwitch != null)
-									{
-										team2Players.Remove(playerToSwitch);
-										team1Players.Add(playerToSwitch);
-										playerToSwitch.Controller?.ChangeTeam(CsTeam.Terrorist);
-										team2RankPoints -= playerToSwitch?.rankData?.Points ?? 0;
-										team1RankPoints += playerToSwitch?.rankData?.Points ?? 0;
-									}
-								}
+								K4Player playerToSwitch = fromPlayers.OrderBy(p => Math.Abs(pointDifference - 2 * (p.rankData?.Points ?? 0))).First();
+								int switchedPoints = playerToSwitch.rankData?.Points ?? 0;
+
+								fromPlayers.Remove(playerToSwitch);
+								toPlayers.Add(playerToSwitch);
+								playerToSwitch.Controller.ChangeTeam(fromTeam1 ? CsTeam.CounterTerrorist : CsTeam.Terrorist);
+
+								team1RankPoints += fromTeam1 ? -switchedPoints : switchedPoints;
+								team2RankPoints += fromTeam1 ? switchedPoints : -switchedPoints;
 							}
 
-							if (maxSwitches > 0)
-							{
-								Server.PrintToChatAll($" {plugin.Localizer["k4.general.prefix"]} {plugin.Localizer["k4.ranks.rank.teamsbalanced"]}");
-							}
-							else
-							{
-								plugin.Logger.LogWarning("Max team switch attempts reached, team balance may not be perfect.");
-							}
+							Server.PrintToChatAll($" {plugin.Localizer["k4.general.prefix"]} {plugin.Localizer["k4.ranks.rank.teamsbalanced"]}");
 						}
 					}
 				}
@@ -239,6 +217,10 @@ namespace K4System
 					return HookResult.Continue;
 
 				K4Player? k4attacker = plugin.GetK4Player(@event.Attacker);
+
+				// Killing yourself (own grenade, kill command, etc.) is a suicide, not a (team) kill
+				if (k4attacker == k4victim)
+					k4attacker = null;
 
 				if (k4victim.IsPlayer)
 				{

@@ -137,6 +137,9 @@ namespace K4System
 
 				Server.NextFrame(() =>
 				{
+					if (!k4player.IsValid || !k4player.IsPlayer)
+						return;
+
 					player!.PrintToChat($" {plugin.Localizer["k4.general.prefix"]} {plugin.Localizer["k4.ranks.rank.title", k4player.PlayerName]}");
 					player.PrintToChat(plugin.Localizer["k4.ranks.rank.line1", playerData.Points, playerData.Rank.Color, playerData.Rank.Name, rankDictionary.Count - higherRanksCount, rankDictionary.Count]);
 
@@ -200,9 +203,12 @@ namespace K4System
 				printCount = Math.Clamp(parsedInt, 1, 25);
 			}
 
+			// Started here on the main thread, it snapshots the players before going to the background
+			Task saveTask = plugin.SaveAllPlayersDataAsync();
+
 			Task.Run(async () =>
 			{
-				await plugin.SaveAllPlayersDataAsync();
+				await saveTask;
 
 				List<(int points, string name)>? rankData = await FetchTopDataAsync(printCount);
 
@@ -299,15 +305,16 @@ namespace K4System
 				RankData? playerData = k4player.rankData;
 
 				if (playerData is null)
-					return;
+					continue;
 
-				playerData.RoundPoints = parsedInt;
-				playerData.Points = 0;
+				playerData.RoundPoints += parsedInt - playerData.Points;
+				playerData.Points = parsedInt;
+				UpdatePlayerRank(k4player);
 
 				if (playerName != "SERVER")
 					Server.PrintToChatAll($" {plugin.Localizer["k4.general.prefix"]} {plugin.Localizer["k4.ranks.setpoints", target.PlayerName, parsedInt, playerName]}");
 
-				Task.Run(() => plugin.SavePlayerDataAsync(k4player, false));
+				Task.Run(() => plugin.SavePlayerDataAsync(k4player));
 			}
 		}
 
@@ -357,15 +364,16 @@ namespace K4System
 				RankData? playerData = k4player.rankData;
 
 				if (playerData is null)
-					return;
+					continue;
 
 				playerData.RoundPoints += parsedInt;
 				playerData.Points += parsedInt;
+				UpdatePlayerRank(k4player);
 
 				if (playerName != "SERVER")
 					Server.PrintToChatAll($" {plugin.Localizer["k4.general.prefix"]} {plugin.Localizer["k4.ranks.givepoints", playerName, parsedInt, target.PlayerName]}");
 
-				Task.Run(() => plugin.SavePlayerDataAsync(k4player, false));
+				Task.Run(() => plugin.SavePlayerDataAsync(k4player));
 			}
 		}
 
@@ -415,15 +423,16 @@ namespace K4System
 				RankData? playerData = k4player.rankData;
 
 				if (playerData is null)
-					return;
+					continue;
 
 				playerData.RoundPoints -= parsedInt;
 				playerData.Points -= parsedInt;
+				UpdatePlayerRank(k4player);
 
 				if (playerName != "SERVER")
 					Server.PrintToChatAll($" {plugin.Localizer["k4.general.prefix"]} {plugin.Localizer["k4.ranks.removepoints", playerName, parsedInt, target.PlayerName]}");
 
-				Task.Run(() => plugin.SavePlayerDataAsync(k4player, false));
+				Task.Run(() => plugin.SavePlayerDataAsync(k4player));
 			}
 		}
 	}

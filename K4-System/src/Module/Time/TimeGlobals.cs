@@ -10,6 +10,7 @@ namespace K4System
 		{
 			public Dictionary<string, DateTime> Times { get; set; } = new Dictionary<string, DateTime>();
 			public Dictionary<string, int> TimeFields { get; set; } = new Dictionary<string, int>();
+			public bool IsAlive { get; set; } = false;
 		}
 
 		public required Plugin plugin;

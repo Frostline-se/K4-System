@@ -30,7 +30,8 @@ namespace K4System
 					if (k4attacker.IsPlayer || Config.StatisticSettings.StatsForBots)
 						ModifyPlayerStats(k4victim, "deaths", 1);
 
-					if (k4attacker.IsPlayer)
+					// Killing yourself (own grenade, kill command, etc.) is still a death, but not a kill
+					if (k4attacker.IsPlayer && k4attacker != k4victim)
 					{
 						ModifyPlayerStats(k4attacker, "kills", 1);
 
@@ -57,9 +58,6 @@ namespace K4System
 
 						if (@event.Revenge > 0)
 							ModifyPlayerStats(k4attacker, "revenge_kill", 1);
-
-						if (@event.Assistedflash)
-							ModifyPlayerStats(k4attacker, "assist_flash", 1);
 
 						if (@event.Headshot)
 							ModifyPlayerStats(k4attacker, "headshots", 1);
@@ -104,6 +102,10 @@ namespace K4System
 				if (k4assister != null && k4assister.IsValid && k4assister.IsPlayer)
 				{
 					ModifyPlayerStats(k4assister, "assists", 1);
+
+					// The flash assist belongs to the assister, not to the killer
+					if (@event.Assistedflash)
+						ModifyPlayerStats(k4assister, "assist_flash", 1);
 				}
 
 				return HookResult.Continue;
@@ -153,6 +155,9 @@ namespace K4System
 
 			plugin.RegisterEventHandler((EventBombPlanted @event, GameEventInfo info) =>
 			{
+				if (!IsStatsAllowed())
+					return HookResult.Continue;
+
 				K4Player? k4player = plugin.GetK4Player(@event.Userid);
 				if (k4player is null || !k4player.IsValid || !k4player.IsPlayer)
 					return HookResult.Continue;
@@ -163,6 +168,9 @@ namespace K4System
 
 			plugin.RegisterEventHandler((EventHostageRescued @event, GameEventInfo info) =>
 			{
+				if (!IsStatsAllowed())
+					return HookResult.Continue;
+
 				K4Player? k4player = plugin.GetK4Player(@event.Userid);
 				if (k4player is null || !k4player.IsValid || !k4player.IsPlayer)
 					return HookResult.Continue;
@@ -173,6 +181,9 @@ namespace K4System
 
 			plugin.RegisterEventHandler((EventHostageKilled @event, GameEventInfo info) =>
 			{
+				if (!IsStatsAllowed())
+					return HookResult.Continue;
+
 				K4Player? k4player = plugin.GetK4Player(@event.Userid);
 				if (k4player is null || !k4player.IsValid || !k4player.IsPlayer)
 					return HookResult.Continue;
@@ -183,6 +194,9 @@ namespace K4System
 
 			plugin.RegisterEventHandler((EventBombDefused @event, GameEventInfo info) =>
 			{
+				if (!IsStatsAllowed())
+					return HookResult.Continue;
+
 				K4Player? k4player = plugin.GetK4Player(@event.Userid);
 				if (k4player is null || !k4player.IsValid || !k4player.IsPlayer)
 					return HookResult.Continue;
@@ -193,6 +207,9 @@ namespace K4System
 
 			plugin.RegisterEventHandler((EventRoundEnd @event, GameEventInfo info) =>
 			{
+				if (!IsStatsAllowed())
+					return HookResult.Continue;
+
 				foreach (K4Player k4player in plugin.K4Players)
 				{
 					if (!k4player.IsValid || !k4player.IsPlayer)
@@ -281,7 +298,7 @@ namespace K4System
 					}
 				}
 
-				Task.Run(plugin.SaveAllPlayersDataAsync);
+				plugin.SaveAllPlayersDataAsync();
 				return HookResult.Continue;
 			});
 		}
