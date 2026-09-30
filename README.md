@@ -39,7 +39,8 @@ For guidance or detailed informations about settings, installation, api, update 
 
 To use this server addon, you'll need the following dependencies installed:
 
-- [**CounterStrikeSharp**](https://github.com/roflmuffin/CounterStrikeSharp/releases): CounterStrikeSharp allows you to write server plugins in C# for Counter-Strike 2/Source2/CS2.
+- [**Metamod:Source 2.0**](https://www.metamodsource.net/downloads.php?branch=dev) (build 1472 or newer): Required by CounterStrikeSharp to load on the server.
+- [**CounterStrikeSharp**](https://github.com/roflmuffin/CounterStrikeSharp/releases) (v1.0.376 or newer, .NET 10): CounterStrikeSharp allows you to write server plugins in C# for Counter-Strike 2/Source2/CS2.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

@@ -7,7 +7,7 @@
     using K4System.Models;
     using Dapper;
 
-    [MinimumApiVersion(200)]
+    [MinimumApiVersion(376)]
     public sealed partial class Plugin : BasePlugin, IPluginConfig<PluginConfig>
     {
         //** ? PLUGIN GLOBALS */
